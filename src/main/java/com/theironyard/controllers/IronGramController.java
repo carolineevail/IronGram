@@ -21,6 +21,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -71,10 +72,14 @@ public class IronGramController {
     }
 
     @RequestMapping(path = "/upload", method = RequestMethod.POST)
-    public Photo upload(MultipartFile photo, Integer timeEntry, HttpSession session, HttpServletResponse response) throws Exception {
+    public Photo upload(MultipartFile photo, Integer timeEntry, String recipient, HttpSession session, HttpServletResponse response) throws Exception {
         String username = (String) session.getAttribute("username");
         if (username == null) {
             throw new Exception("Not logged in.");
+        }
+
+        if (!photo.getContentType().startsWith("image")) {
+              throw new Exception("You can only upload images.");
         }
 
         User user = users.findByName(username);
@@ -83,7 +88,9 @@ public class IronGramController {
         FileOutputStream fos = new FileOutputStream(photoFile);
         fos.write(photo.getBytes());
 
-        Photo p = new Photo(user, null, photoFile.getName(), timeEntry);
+        User user1 = users.findByName(recipient);
+
+        Photo p = new Photo(user, user1, photoFile.getName(), timeEntry);
         photos.save(p);
 
         response.sendRedirect("/");
@@ -92,9 +99,20 @@ public class IronGramController {
     }
 
     @RequestMapping(path = "/photos", method = RequestMethod.GET)
-    public List<Photo> showPhotos() {
+    public List<Photo> showPhotos(HttpSession session) {
+        // Help by Alex Hughes and Paige Hetherington
+        String username = (String) session.getAttribute("username");
+        User user = users.findByName(username);
         List<Photo> photosList = (List<Photo>)photos.findAll();
+        List<Photo> sentPhotos = (List<Photo>)photos.findByRecipient(user);
+
         for (Photo photo : photosList) {
+            if (photo.getRecipient() == null) {
+                sentPhotos.add(photo);
+            }
+        }
+
+        for (Photo photo : sentPhotos) {
             if (photo.getDateTime() == null) {
                 photo.setDateTime(LocalDateTime.now());
                 photos.save(photo);
@@ -106,6 +124,12 @@ public class IronGramController {
             }
         }
 
-        return photosList;
+        return sentPhotos;
+    }
+
+    @RequestMapping(path = "/logout", method = RequestMethod.POST)
+    public void logout(HttpSession session, HttpServletResponse response) throws IOException {
+        session.invalidate();
+        response.sendRedirect("/");
     }
 }

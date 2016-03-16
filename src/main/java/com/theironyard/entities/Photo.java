@@ -26,6 +26,7 @@ public class Photo {
     @NotNull
     int timeEntry;
 
+
     LocalDateTime dateTime;
 
     public int getTimeEntry() {
@@ -35,6 +36,7 @@ public class Photo {
     public void setTimeEntry(int timeEntry) {
         this.timeEntry = timeEntry;
     }
+
 
     public Photo() {
     }
